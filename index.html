@@ -1,0 +1,437 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>每日新闻</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: "Songti SC", "SimSun", serif;
+    background: #f2f0eb;
+    min-height: 100vh;
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  header {
+    position: sticky; top: 0; z-index: 10;
+    background: #1a2a4a; color: #fff;
+    padding: 12px 16px;
+    display: flex; justify-content: space-between; align-items: center;
+    box-shadow: 0 2px 8px rgba(0,0,0,.25);
+  }
+  header .t { font-size: 17px; font-weight: 700; letter-spacing: 2px; }
+  header .meta { font-size: 12px; opacity: .85; }
+  #toolbar {
+    position: sticky; top: 52px; z-index: 9;
+    display: flex; gap: 10px; padding: 10px 16px;
+    background: rgba(242,240,235,.95); backdrop-filter: blur(6px);
+  }
+  button {
+    flex: 1; border: none; border-radius: 10px;
+    padding: 12px 0; font-size: 15px; font-weight: 700;
+    font-family: inherit; cursor: pointer;
+  }
+  #regen { background: #c8392b; color: #fff; }
+  #regen:disabled { background: #b9a9a5; }
+  #saveBtn { background: #fff; color: #1a2a4a; border: 1.5px solid #1a2a4a; }
+  #saveBtn:disabled { color: #b0aca6; border-color: #d8d4ce; }
+  #status {
+    font-size: 12.5px; color: #6b675f; text-align: center;
+    padding: 4px 16px 8px; line-height: 1.6; white-space: pre-line;
+  }
+  #stage { padding: 0 12px 24px; }
+  #stage img, #stage canvas {
+    width: 100%; height: auto; display: block;
+    border-radius: 8px; box-shadow: 0 4px 18px rgba(0,0,0,.18);
+    background: #fff;
+  }
+  .hidden { display: none !important; }
+  footer { text-align: center; font-size: 11px; color: #a09a90; padding: 0 0 20px; }
+</style>
+</head>
+<body>
+<header>
+  <div class="t">每日新闻</div>
+  <div class="meta" id="meta">加载中…</div>
+</header>
+<div id="toolbar">
+  <button id="regen">立即重新生成</button>
+  <button id="saveBtn" disabled>保存图片</button>
+</div>
+<div id="status"></div>
+<div id="stage"><img id="dailyImg" alt="每日新闻图"></div>
+<footer>数据来源：人民网 / 财政部 / 税务总局 / 国家知识产权局 · 天气：Open-Meteo</footer>
+
+<canvas id="cv" width="800" height="2400" class="hidden"></canvas>
+
+<script>
+"use strict";
+const $ = id => document.getElementById(id);
+const STATUS = $('status');
+const log = s => { STATUS.textContent = s; console.log(s); };
+
+let CONFIG = null, fontR = null, fontB = null, TEMPLATE = null;
+let latestCanvasURL = null;
+
+/* ---------------- 基础加载 ---------------- */
+async function boot() {
+  CONFIG = await fetch('config.json').then(r => r.json());
+  try {
+    const [r, b] = await Promise.all([
+      new FontFace('SHSR', "url('fonts/SourceHanSerifCN-Regular.otf')").load(),
+      new FontFace('SHSB', "url('fonts/SourceHanSerifCN-Bold.otf')").load()
+    ]);
+    document.fonts.add(r); document.fonts.add(b);
+    fontR = r; fontB = b;
+  } catch (e) { log('字体加载失败：' + e.message); }
+  TEMPLATE = new Image();
+  TEMPLATE.src = 'template.png';
+  await new Promise((ok, no) => { TEMPLATE.onload = ok; TEMPLATE.onerror = no; })
+    .catch(() => log('模版图加载失败'));
+
+  // 展示当日已生成结果（若 Actions 已跑）
+  try {
+    const d = await fetch('output/latest.json?t=' + Date.now()).then(r => r.json());
+    $('meta').textContent = `${d.date} ${d.weekday} · ${d.weather}`;
+    $('dailyImg').src = d.image + '?t=' + Date.now();
+    log('已加载云端生成结果，点击"立即重新生成"可刷新为最新内容');
+  } catch (e) {
+    log('今日云端结果尚未生成，点击"立即重新生成"直接在手机上生成');
+  }
+}
+
+/* ---------------- 数据抓取 ---------------- */
+async function fetchViaProxy(url, timeout = 25000) {
+  const proxies = [
+    u => 'https://api.allorigins.win/raw?url=' + encodeURIComponent(u),
+    u => 'https://corsproxy.io/?url=' + encodeURIComponent(u),
+  ];
+  for (const p of proxies) {
+    try {
+      const r = await fetch(p(url), { signal: AbortSignal.timeout(timeout) });
+      if (r.ok) return await r.text();
+    } catch (e) { /* 尝试下一个代理 */ }
+  }
+  throw new Error('代理抓取失败: ' + url);
+}
+
+function parseRSS(xmlText) {
+  const doc = new DOMParser().parseFromString(xmlText, 'text/xml');
+  const items = [];
+  doc.querySelectorAll('item').forEach(it => {
+    const title = (it.querySelector('title')?.textContent || '').trim();
+    if (title) items.push({ title, published: it.querySelector('pubDate')?.textContent || '' });
+  });
+  return items;
+}
+
+function parseHTMLTitles(htmlText, tmin, tmax) {
+  const doc = new DOMParser().parseFromString(htmlText, 'text/html');
+  const out = [], seen = new Set();
+  doc.querySelectorAll('a').forEach(a => {
+    const t = (a.textContent || '').replace(/\s+/g, '');
+    if (t.length < tmin || t.length > tmax) return;
+    if (/首页|更多|登录|搜索|注册/.test(t)) return;
+    if (seen.has(t)) return;
+    seen.add(t);
+    out.push({ title: t, published: '' });
+    if (out.length >= 20) return;
+  });
+  return out;
+}
+
+async function getWeather() {
+  const w = CONFIG.weather;
+  const url = `https://api.open-meteo.com/v1/forecast?latitude=${w.latitude}&longitude=${w.longitude}` +
+    `&daily=temperature_2m_max,temperature_2m_min,weather_code&timezone=Asia%2FShanghai&forecast_days=1`;
+  const d = (await fetch(url).then(r => r.json())).daily;
+  const code = d.weather_code[0];
+  const tmax = Math.round(d.temperature_2m_max[0]);
+  const tmin = Math.round(d.temperature_2m_min[0]);
+  const map = {0:'晴',1:'多云',2:'多云',3:'阴',45:'雾',48:'雾',51:'小雨',53:'小雨',55:'中雨',
+    61:'小雨',63:'中雨',65:'大雨',66:'冻雨',67:'冻雨',71:'小雪',73:'中雪',75:'大雪',77:'小雪',
+    80:'阵雨',81:'阵雨',82:'暴雨',85:'阵雪',86:'阵雪',95:'雷雨',96:'雷雨',99:'雷雨'};
+  const text = map[code] || '多云';
+  return { code, text, tmin, tmax, display: `${text} ${tmin}~${tmax}℃` };
+}
+
+async function collectNews() {
+  const cfg = CONFIG.news;
+  const block = cfg.block_keywords;
+  const news = [];
+  for (const cat of cfg.categories) {
+    let items = [];
+    for (const src of cat.sources) {
+      try {
+        const text = await fetchViaProxy(src.url);
+        items = items.concat(src.type === 'rss'
+          ? parseRSS(text)
+          : parseHTMLTitles(text, src.title_min || 10, src.title_max || 60));
+      } catch (e) { log(`板块[${cat.name}] 源抓取失败：${e.message}`); }
+    }
+    const req = cat.require_keywords || [];
+    const seen = new Set();
+    const uniq = items.filter(i => {
+      if (block.some(k => i.title.includes(k))) return false;
+      if (req.length && !req.some(k => i.title.includes(k))) return false;
+      const key = i.title.replace(/[\s\W]+/g, '');
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+    uniq.slice(0, cat.quota).forEach(i => news.push({ title: i.title, category: cat.name }));
+    log(`板块[${cat.name}] ${uniq.length} 条可用，选用 ${Math.min(uniq.length, cat.quota)} 条`);
+  }
+  const maxLen = cfg.max_title_len;
+  news.forEach(n => { if (n.title.length > maxLen) n.title = n.title.slice(0, maxLen - 1) + '…'; });
+  return news;
+}
+
+/* ---------------- Canvas 绘制（与 Python 端一致） ---------------- */
+function eraseRegion(ctx, box) {
+  const [x1, y1, x2, y2] = box;
+  const W = 800, H = 2400;
+  const samples = [];
+  const stepX = Math.max(1, Math.floor((x2 - x1) / 20));
+  const stepY = Math.max(1, Math.floor((y2 - y1) / 20));
+  for (let x = Math.max(0, x1 - 3); x < Math.min(W, x2 + 3); x += stepX) {
+    for (const yy of [y1 - 3, y2 + 3]) if (yy >= 0 && yy < H) samples.push(ctx.getImageData(x, yy, 1, 1).data);
+  }
+  for (let y = Math.max(0, y1 - 3); y < Math.min(H, y2 + 3); y += stepY) {
+    for (const xx of [x1 - 3, x2 + 3]) if (xx >= 0 && xx < W) samples.push(ctx.getImageData(xx, y, 1, 1).data);
+  }
+  const freq = new Map();
+  samples.forEach(d => { const k = d[0] + ',' + d[1] + ',' + d[2]; freq.set(k, (freq.get(k) || 0) + 1); });
+  const [r, g, b] = [...freq.entries()].sort((a, c) => c[1] - a[1])[0][0].split(',').map(Number);
+  ctx.fillStyle = `rgb(${r},${g},${b})`;
+  ctx.fillRect(x1, y1, x2 - x1, y2 - y1);
+}
+
+function fitSingleLine(ctx, text, fontPrefix, box, maxSize = 44, minSize = 14) {
+  const [x1, y1, x2, y2] = box;
+  const bw = x2 - x1, bh = y2 - y1;
+  for (let size = maxSize; size >= minSize; size--) {
+    ctx.font = `${size}px ${fontPrefix}`;
+    const m = ctx.measureText(text);
+    const w = m.width, h = m.actualBoundingBoxAscent + m.actualBoundingBoxDescent;
+    if (w <= bw && h <= bh) return size;
+  }
+  return minSize;
+}
+
+function wrapTitle(ctx, title, maxW) {
+  const lines = []; let cur = '';
+  for (const ch of title) {
+    if (ctx.measureText(cur + ch).width > maxW && cur) { lines.push(cur); cur = ch; }
+    else cur += ch;
+  }
+  if (cur) lines.push(cur);
+  return lines;
+}
+
+function layoutNews(ctx, news, box) {
+  const [x1, y1, x2, y2] = box;
+  const bw = x2 - x1;
+  for (let size = 40; size >= 18; size--) {
+    ctx.font = `${size}px SHSR`;
+    const lineH = Math.floor(size * 1.5), gap = Math.floor(size * 0.55);
+    let numW = 0;
+    for (let i = 1; i <= news.length; i++) numW = Math.max(numW, ctx.measureText(i + '. ').width);
+    const layout = []; let total = 0;
+    news.forEach((item, idx) => {
+      const lines = wrapTitle(ctx, item.title, bw - numW);
+      layout.push({ num: idx + 1, lines });
+      total += lines.length * lineH + (idx > 0 ? gap : 0);
+    });
+    if (total <= y2 - y1) return { size, lineH, gap, numW, layout };
+  }
+  return null;
+}
+
+function drawWeatherIcon(ctx, box, code) {
+  const [x1, y1, x2, y2] = box;
+  const w = x2 - x1, h = y2 - y1;
+  const pad = Math.floor(Math.min(w, h) * 0.12);
+  const W = w - pad * 2, H = h - pad * 2;
+  const cx = x1 + w / 2, cy = y1 + h / 2;
+  ctx.save();
+  ctx.strokeStyle = '#fff'; ctx.fillStyle = '#fff';
+  ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+  const lw = Math.max(3, Math.floor(W / 30));
+  ctx.lineWidth = lw;
+
+  const cloud = (ccx, ccy, s) => {
+    const r = s * 0.22;
+    [[-0.28, 0.08], [0, -0.12], [0.3, 0.08]].forEach(([dx, dy]) => {
+      ctx.beginPath();
+      ctx.arc(ccx + dx * s, ccy + dy * s, r * 1.15, 0, Math.PI * 2);
+      ctx.fill();
+    });
+    ctx.beginPath();
+    ctx.roundRect(ccx - 0.38 * s, ccy, 0.76 * s, 0.2 * s, r * 0.8);
+    ctx.fill();
+  };
+
+  if (code === 0) {
+    const r = W * 0.22;
+    ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.stroke();
+    for (let i = 0; i < 8; i++) {
+      const a = i * Math.PI / 4;
+      ctx.beginPath();
+      ctx.moveTo(cx + (r + lw * 2.2) * Math.cos(a), cy + (r + lw * 2.2) * Math.sin(a));
+      ctx.lineTo(cx + (r + lw * 4.6) * Math.cos(a), cy + (r + lw * 4.6) * Math.sin(a));
+      ctx.stroke();
+    }
+  } else if (code === 1 || code === 2) {
+    const r = W * 0.16, sx = cx + W * 0.12, sy = cy - H * 0.16;
+    ctx.beginPath(); ctx.arc(sx, sy, r, 0, Math.PI * 2); ctx.stroke();
+    for (let i = 0; i < 8; i++) {
+      const a = i * Math.PI / 4;
+      ctx.beginPath();
+      ctx.moveTo(sx + (r + lw * 1.4) * Math.cos(a), sy + (r + lw * 1.4) * Math.sin(a));
+      ctx.lineTo(sx + (r + lw * 2.8) * Math.cos(a), sy + (r + lw * 2.8) * Math.sin(a));
+      ctx.stroke();
+    }
+    cloud(cx - W * 0.08, cy + H * 0.16, W * 0.62);
+  } else if (code === 3) {
+    cloud(cx, cy, W * 0.78);
+  } else if (code === 45 || code === 48) {
+    [-0.18, 0, 0.18].forEach(yy => {
+      ctx.beginPath();
+      ctx.moveTo(cx - W * 0.34, cy + H * yy);
+      ctx.lineTo(cx + W * 0.34, cy + H * yy);
+      ctx.stroke();
+    });
+  } else {
+    cloud(cx, cy - H * 0.1, W * 0.72);
+    const isSnow = [71,73,75,77,85,86].includes(code);
+    const isThunder = [95,96,99].includes(code);
+    if (isSnow) {
+      const sr = Math.max(3, W * 0.035);
+      [-0.2, 0, 0.2].forEach(dx => {
+        ctx.beginPath(); ctx.arc(cx + W * dx, cy + H * 0.22, sr, 0, Math.PI * 2); ctx.fill();
+      });
+    } else if (isThunder) {
+      ctx.beginPath();
+      ctx.moveTo(cx - W * 0.02, cy + H * 0.1); ctx.lineTo(cx + W * 0.1, cy + H * 0.1);
+      ctx.lineTo(cx + W * 0.01, cy + H * 0.24); ctx.lineTo(cx + W * 0.12, cy + H * 0.24);
+      ctx.lineTo(cx - W * 0.06, cy + H * 0.46); ctx.lineTo(cx, cy + H * 0.28);
+      ctx.lineTo(cx - W * 0.12, cy + H * 0.28);
+      ctx.closePath(); ctx.fill();
+    } else {
+      [-0.2, 0, 0.2].forEach(dx => {
+        ctx.beginPath();
+        ctx.moveTo(cx + W * dx, cy + H * 0.16);
+        ctx.lineTo(cx + W * dx - W * 0.06, cy + H * 0.34);
+        ctx.stroke();
+      });
+    }
+  }
+  ctx.restore();
+}
+
+function render(dateStr, weekday, weather, news) {
+  const cv = $('cv'), ctx = cv.getContext('2d');
+  ctx.clearRect(0, 0, 800, 2400);
+  ctx.drawImage(TEMPLATE, 0, 0);
+  const L = CONFIG.layout;
+
+  ['date_box', 'weather_text_box', 'weather_icon_box', 'news_box'].forEach(k => eraseRegion(ctx, L[k]));
+
+  // 日期
+  const dText = `${dateStr}  ${weekday}`;
+  let size = fitSingleLine(ctx, dText, 'SHSB', L.date_box, 44);
+  ctx.font = `${size}px SHSB`; ctx.fillStyle = '#fff'; ctx.textBaseline = 'alphabetic';
+  {
+    const [x1, y1, x2, y2] = L.date_box;
+    const m = ctx.measureText(dText);
+    const th = m.actualBoundingBoxAscent + m.actualBoundingBoxDescent;
+    ctx.fillText(dText, x1, y1 + (y2 - y1 - th) / 2 + m.actualBoundingBoxAscent);
+  }
+
+  // 天气文字
+  const wText = weather.display;
+  size = fitSingleLine(ctx, wText, 'SHSB', L.weather_text_box, 30);
+  ctx.font = `${size}px SHSB`; ctx.fillStyle = '#16337a';
+  {
+    const [x1, y1, x2, y2] = L.weather_text_box;
+    const m = ctx.measureText(wText);
+    const th = m.actualBoundingBoxAscent + m.actualBoundingBoxDescent;
+    ctx.fillText(wText, x1, y1 + (y2 - y1 - th) / 2 + m.actualBoundingBoxAscent);
+  }
+
+  // 天气图标
+  drawWeatherIcon(ctx, L.weather_icon_box, weather.code);
+
+  // 新闻
+  const lay = layoutNews(ctx, news, L.news_box);
+  if (!lay) { log('新闻条数过多无法排版'); return; }
+  const [x1, y1] = L.news_box;
+  ctx.fillStyle = '#000'; ctx.textBaseline = 'alphabetic';
+  let cy = y1;
+  lay.layout.forEach(ent => {
+    ctx.font = `${lay.size}px SHSB`;
+    const m = ctx.measureText('字');
+    ctx.fillText(ent.num + '. ', x1, cy + m.actualBoundingBoxAscent);
+    ctx.font = `${lay.size}px SHSR`;
+    ent.lines.forEach((line, i) => {
+      ctx.fillText(line, x1 + lay.numW, cy + i * lay.lineH + m.actualBoundingBoxAscent);
+    });
+    cy += ent.lines.length * lay.lineH + lay.gap;
+  });
+  log(`排版完成：${news.length} 条，字号 ${lay.size}px`);
+}
+
+/* ---------------- 交互 ---------------- */
+$('regen').addEventListener('click', async () => {
+  const btn = $('regen');
+  btn.disabled = true; btn.textContent = '生成中…';
+  try {
+    log('正在获取苏州天气…');
+    const weather = await getWeather();
+    log(`天气：${weather.display}，正在抓取新闻…`);
+    const news = await collectNews();
+    if (!news.length) throw new Error('未抓到任何新闻');
+    const today = new Date();
+    const weekday = '周' + '日一二三四五六'[today.getDay()];
+    const dateStr = `${today.getMonth() + 1}月${today.getDate()}日`;
+    render(dateStr, weekday, weather, news);
+    // 显示 Canvas
+    if (latestCanvasURL) URL.revokeObjectURL(latestCanvasURL);
+    latestCanvasURL = $('cv').toBlob
+      ? await new Promise(ok => $('cv').toBlob(ok, 'image/png'))
+      : null;
+    if (latestCanvasURL) {
+      latestCanvasURL = URL.createObjectURL(latestCanvasURL);
+      $('dailyImg').src = latestCanvasURL;
+    }
+    $('meta').textContent = `${today.toISOString().slice(0,10)} ${weekday} · ${weather.display}`;
+    $('saveBtn').disabled = false;
+    log('已生成最新内容，点击"保存图片"或长按图片保存');
+  } catch (e) {
+    log('生成失败：' + e.message);
+  } finally {
+    btn.disabled = false; btn.textContent = '立即重新生成';
+  }
+});
+
+$('saveBtn').addEventListener('click', async () => {
+  if (!latestCanvasURL) return;
+  const name = '每日新闻_' + new Date().toISOString().slice(0, 10) + '.png';
+  try {
+    const blob = await fetch(latestCanvasURL).then(r => r.blob());
+    const file = new File([blob], name, { type: 'image/png' });
+    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+      await navigator.share({ files: [file], title: name });
+      return;
+    }
+  } catch (e) { /* 用户取消分享或浏览器不支持，回退下载 */ }
+  const a = document.createElement('a');
+  a.href = latestCanvasURL; a.download = name;
+  document.body.appendChild(a); a.click(); a.remove();
+});
+
+boot();
+</script>
+</body>
+</html>

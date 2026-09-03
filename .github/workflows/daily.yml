@@ -1,0 +1,37 @@
+name: daily-news
+
+on:
+  schedule:
+    # UTC 0:15 = 北京时间 8:15（GitHub Actions 可能有 5~20 分钟队列延迟）
+    - cron: '15 0 * * *'
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: 安装依赖
+        run: pip install pillow feedparser requests beautifulsoup4
+
+      - name: 生成今日新闻图
+        env:
+          PUSHPLUS_TOKEN: ${{ secrets.PUSHPLUS_TOKEN }}
+          SITE_URL: ${{ vars.SITE_URL }}
+        run: python generate_news.py
+
+      - name: 提交产物
+        run: |
+          git config user.name "news-bot"
+          git config user.email "actions@github.com"
+          git add output/
+          git commit -m "daily: $(date -u +%F) 新闻图" || echo "nothing to commit"
+          git push

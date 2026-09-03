@@ -1,0 +1,68 @@
+{
+  "city": "苏州",
+  "weather": {
+    "latitude": 31.299,
+    "longitude": 120.5853,
+    "timezone": "Asia/Shanghai"
+  },
+  "news": {
+    "max_title_len": 50,
+    "max_age_days": 3,
+    "fallback_top_n": 8,
+    "block_keywords": ["娱乐", "综艺", "明星", "八卦", "电视剧", "电影", "选秀", "演唱会", "综艺节目", "学习卡", "学习手记", "镜观·"],
+    "categories": [
+      {
+        "name": "财税",
+        "quota": 4,
+        "sources": [
+          {"type": "html", "url": "https://www.mof.gov.cn/zhengwuxinxi/caizhengxinwen/", "title_min": 10, "title_max": 60},
+          {"type": "html", "url": "https://www.chinatax.gov.cn/chinatax/n810219/n810724/index.html", "title_min": 10, "title_max": 60}
+        ]
+      },
+      {
+        "name": "时政",
+        "quota": 5,
+        "sources": [
+          {"type": "rss", "url": "http://www.people.com.cn/rss/politics.xml"}
+        ]
+      },
+      {
+        "name": "国际",
+        "quota": 3,
+        "sources": [
+          {"type": "rss", "url": "http://www.people.com.cn/rss/world.xml"}
+        ]
+      },
+      {
+        "name": "军事",
+        "quota": 2,
+        "sources": [
+          {"type": "rss", "url": "http://www.people.com.cn/rss/military.xml"}
+        ]
+      },
+      {
+        "name": "体育",
+        "quota": 3,
+        "sources": [
+          {"type": "rss", "url": "http://www.people.com.cn/rss/sports.xml"}
+        ]
+      },
+      {
+        "name": "知识产权",
+        "quota": 2,
+        "require_keywords": ["知识产权", "专利", "商标", "版权", "知产", "地理标志", "植物新品种", "申长雨"],
+        "sources": [
+          {"type": "html", "url": "https://www.cnipa.gov.cn/", "title_min": 12, "title_max": 60},
+          {"type": "html", "url": "https://www.iprchn.com/", "title_min": 12, "title_max": 60}
+        ]
+      }
+    ]
+  },
+  "layout": {
+    "image_size": [800, 2400],
+    "date_box": [80, 370, 324, 418],
+    "weather_text_box": [602, 423, 731, 456],
+    "weather_icon_box": [510, 236, 750, 418],
+    "news_box": [56, 642, 744, 2273]
+  }
+}
