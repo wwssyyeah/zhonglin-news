@@ -69,21 +69,55 @@ const $ = id => document.getElementById(id);
 const STATUS = $('status');
 const log = s => { STATUS.textContent = s; console.log(s); };
 
+/* ---------- 兼容垫片：旧版微信X5 / iOS Safari ---------- */
+// AbortSignal.timeout 垫片（Chrome<103 / Safari<15 不支持）
+if (typeof AbortSignal !== 'function' || !AbortSignal.timeout) {
+  AbortSignal.timeout = function (ms) {
+    const c = new AbortController();
+    setTimeout(() => c.abort(), ms);
+    return c.signal;
+  };
+}
+// ctx.roundRect 垫片（iOS<16.4 / 旧X5 不支持）
+if (typeof CanvasRenderingContext2D !== 'undefined' && !CanvasRenderingContext2D.prototype.roundRect) {
+  CanvasRenderingContext2D.prototype.roundRect = function (x, y, w, h, r) {
+    r = Math.min(typeof r === 'number' ? r : 0, w / 2, h / 2);
+    this.moveTo(x + r, y);
+    this.arcTo(x + w, y, x + w, y + h, r);
+    this.arcTo(x + w, y + h, x, y + h, r);
+    this.arcTo(x, y + h, x, y, r);
+    this.arcTo(x, y, x + w, y, r);
+    this.closePath();
+    return this;
+  };
+}
+
 let CONFIG = null, fontR = null, fontB = null, TEMPLATE = null;
 let latestCanvasURL = null;
 let SOURCES_CACHE = { boards: {}, weather: null, date: '' };
+// 字体栈：在线宋体优先，失败回退系统宋体/衬线体
+const F_R = 'SHSR, "Songti SC", "STSong", SimSun, serif';
+const F_B = 'SHSB, "Songti SC", "STSong", SimSun, serif';
 
 /* ---------------- 基础加载 ---------------- */
 async function boot() {
+  log('页面加载中…');
   CONFIG = await fetch('config.json').then(r => r.json());
+  // 字体加载：15秒超时兜底，失败改用系统宋体
   try {
-    const [r, b] = await Promise.all([
-      new FontFace('SHSR', "url('fonts/SourceHanSerifCN-Regular.otf')").load(),
-      new FontFace('SHSB', "url('fonts/SourceHanSerifCN-Bold.otf')").load()
+    const loadWithTimeout = (ff, ms) => Promise.race([
+      ff,
+      new Promise((_, no) => setTimeout(() => no(new Error('字体加载超时')), ms))
     ]);
-    document.fonts.add(r); document.fonts.add(b);
+    const [r, b] = await Promise.all([
+      loadWithTimeout(new FontFace('SHSR', "url('fonts/SourceHanSerifCN-Regular.otf')").then(f => { document.fonts.add(f); return f; }), 15000),
+      loadWithTimeout(new FontFace('SHSB', "url('fonts/SourceHanSerifCN-Bold.otf')").then(f => { document.fonts.add(f); return f; }), 15000),
+    ]);
     fontR = r; fontB = b;
-  } catch (e) { log('字体加载失败：' + e.message); }
+    log('字体就绪');
+  } catch (e) {
+    log('在线字体未就绪，将使用系统宋体（不影响生成）');
+  }
   TEMPLATE = new Image();
   TEMPLATE.src = 'template.png';
   await new Promise((ok, no) => { TEMPLATE.onload = ok; TEMPLATE.onerror = no; })
@@ -99,9 +133,9 @@ async function boot() {
     const d = await fetch('output/latest.json?t=' + Date.now()).then(r => r.json());
     $('meta').textContent = `${d.date} ${d.weekday} · ${d.weather}`;
     $('dailyImg').src = d.image + '?t=' + Date.now();
-    log('已加载云端生成结果，点击"立即重新生成"可刷新为最新内容');
+    log('已加载云端结果，点击"立即重新生成"可刷新为最新内容');
   } catch (e) {
-    log('今日云端结果尚未生成，点击"立即重新生成"直接在手机上生成');
+    log('今日云端结果尚未生成，点击"立即重新生成"直接生成');
   }
 }
 
@@ -233,7 +267,7 @@ function layoutNews(ctx, news, box) {
   const [x1, y1, x2, y2] = box;
   const bw = x2 - x1;
   for (let size = 40; size >= 18; size--) {
-    ctx.font = `${size}px SHSR`;
+    ctx.font = `${size}px ${F_R}`;
     const lineH = Math.floor(size * 1.5), gap = Math.floor(size * 0.55);
     let numW = 0;
     for (let i = 1; i <= news.length; i++) numW = Math.max(numW, ctx.measureText(i + '. ').width);
@@ -340,8 +374,8 @@ function render(dateStr, weekday, weather, news) {
 
   // 日期
   const dText = `${dateStr}  ${weekday}`;
-  let size = fitSingleLine(ctx, dText, 'SHSB', L.date_box, 44);
-  ctx.font = `${size}px SHSB`; ctx.fillStyle = '#fff'; ctx.textBaseline = 'alphabetic';
+  let size = fitSingleLine(ctx, dText, F_B, L.date_box, 44);
+  ctx.font = `${size}px ${F_B}`; ctx.fillStyle = '#fff'; ctx.textBaseline = 'alphabetic';
   {
     const [x1, y1, x2, y2] = L.date_box;
     const m = ctx.measureText(dText);
@@ -351,8 +385,8 @@ function render(dateStr, weekday, weather, news) {
 
   // 天气文字（深蓝）
   const wText = weather.display;
-  size = fitSingleLine(ctx, wText, 'SHSB', L.weather_text_box, 30);
-  ctx.font = `${size}px SHSB`; ctx.fillStyle = '#16337a';
+  size = fitSingleLine(ctx, wText, F_B, L.weather_text_box, 30);
+  ctx.font = `${size}px ${F_B}`; ctx.fillStyle = '#16337a';
   {
     const [x1, y1, x2, y2] = L.weather_text_box;
     const m = ctx.measureText(wText);
@@ -370,10 +404,10 @@ function render(dateStr, weekday, weather, news) {
   ctx.fillStyle = '#000'; ctx.textBaseline = 'alphabetic';
   let cy = y1;
   lay.layout.forEach(ent => {
-    ctx.font = `${lay.size}px SHSB`;
+    ctx.font = `${lay.size}px ${F_B}`;
     const m = ctx.measureText('字');
     ctx.fillText(ent.num + '. ', x1, cy + m.actualBoundingBoxAscent);
-    ctx.font = `${lay.size}px SHSR`;
+    ctx.font = `${lay.size}px ${F_R}`;
     ent.lines.forEach((line, i) => {
       ctx.fillText(line, x1 + lay.numW, cy + i * lay.lineH + m.actualBoundingBoxAscent);
     });
@@ -386,30 +420,35 @@ function render(dateStr, weekday, weather, news) {
 $('regen').addEventListener('click', async () => {
   const btn = $('regen');
   btn.disabled = true; btn.textContent = '生成中…';
+  let step = '初始化';
   try {
-    log('正在获取苏州天气…');
+    step = '获取天气';
+    log('【1/4】正在获取苏州天气…');
     const weather = await getWeatherSafe();
-    log(`天气：${weather.display}，正在抓取新闻…`);
+    log(`【2/4】天气：${weather.display}，正在抓取新闻…`);
+    step = '抓取新闻';
     const news = await collectNews();
-    if (!news.length) throw new Error('未抓到任何新闻');
+    if (!news.length) throw new Error('未抓到任何新闻（实时与缓存均无数据）');
+    step = '绘制图片';
+    log(`【3/4】共 ${news.length} 条，正在绘制…`);
     const today = new Date();
     const weekday = '周' + '日一二三四五六'[today.getDay()];
     const dateStr = `${today.getMonth() + 1}月${today.getDate()}日`;
     render(dateStr, weekday, weather, news);
-    // 显示 Canvas
-    const blob = await new Promise(ok => $('cv').toBlob(ok, 'image/png'));
-    if (blob) {
-      if (latestCanvasURL) URL.revokeObjectURL(latestCanvasURL);
-      latestCanvasURL = URL.createObjectURL(blob);
-      $('dailyImg').src = latestCanvasURL;
-    }
+    step = '导出图片';
+    log('【4/4】正在导出图片…');
+    const blob = await new Promise((ok, no) => $('cv').toBlob(b => b ? ok(b) : no(new Error('toBlob 返回空')), 'image/png'));
+    if (latestCanvasURL) URL.revokeObjectURL(latestCanvasURL);
+    latestCanvasURL = URL.createObjectURL(blob);
+    $('dailyImg').src = latestCanvasURL;
     const d = new Date();
     const iso = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
     $('meta').textContent = `${iso} ${weekday} · ${weather.display}`;
     $('saveBtn').disabled = false;
-    log('已生成最新内容，点击"保存图片"或长按图片保存');
+    log('生成成功！点击"保存图片"或长按图片保存');
   } catch (e) {
-    log('生成失败：' + e.message);
+    const detail = (e && e.message) ? e.message : String(e);
+    log(`生成失败于【${step}】：${detail}\n(错误类型: ${e && e.name ? e.name : '未知'})`);
   } finally {
     btn.disabled = false; btn.textContent = '立即重新生成';
   }
