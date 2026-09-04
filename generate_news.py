@@ -89,8 +89,8 @@ def fetch_html_titles(url, title_min, title_max, timeout=25):
         return []
 
 
-def collect_news(now):
-    """按板块抓取并挑选新闻，返回有序列表 [{title, category}]"""
+def collect_news(now, board_cache=None):
+    """按板块抓取并挑选新闻，返回有序列表 [{title, category}]；board_cache 记录各板块原始标题供 H5 使用"""
     cfg = CONFIG["news"]
     block_kw = cfg["block_keywords"]
     max_age = dt.timedelta(days=cfg["max_age_days"])
@@ -123,6 +123,8 @@ def collect_news(now):
         fresh = fresh[: cfg["fallback_top_n"]]
         for it in fresh[: cat["quota"]]:
             selected.append({"title": it["title"], "category": cat["name"]})
+        if board_cache is not None:
+            board_cache[cat["name"]] = [i["title"][: cfg["max_title_len"]] for i in fresh[:15]]
         print(f"[info] 板块[{cat['name']}] 抓到 {len(uniq)} 条，选用 {min(len(fresh), cat['quota'])} 条")
     # 截断标题
     max_len = cfg["max_title_len"]
@@ -369,13 +371,16 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--date", default=None, help="YYYY-MM-DD")
     ap.add_argument("--no-push", action="store_true")
+    ap.add_argument("--push", default="auto", choices=["auto", "always"],
+                    help="auto=仅北京时间7-9点推送（定时多次运行用），always=强制推送")
     args = ap.parse_args()
 
     now = dt.datetime.now()
     date = dt.date.fromisoformat(args.date) if args.date else now.date()
 
     print(f"[info] 开始生成 {date} 每日新闻图")
-    news = collect_news(now)
+    board_cache = {}
+    news = collect_news(now, board_cache)
     if not news:
         print("[error] 未抓到任何新闻，中止")
         sys.exit(1)
@@ -411,7 +416,22 @@ def main():
     (OUT_DIR / "latest.json").write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
     print(f"[info] latest.json 已更新")
 
-    if not args.no_push:
+    # sources.json：各板块原始标题 + 天气缓存，供 H5 前端重新生成时使用
+    sources = {
+        "date": date.isoformat(),
+        "weekday": weekday,
+        "weather": {"code": weather["code"], "display": weather["display"]},
+        "boards": board_cache,
+        "updated_at": dt.datetime.now().isoformat(timespec="seconds"),
+    }
+    (OUT_DIR / "sources.json").write_text(json.dumps(sources, ensure_ascii=False, indent=2), encoding="utf-8")
+    print(f"[info] sources.json 已更新")
+
+    # 推送策略：--no-push 不推；--push auto 仅北京时间 7-9 点推（早间定时）；--push always 强制推
+    beijing_hour = (dt.datetime.utcnow() + dt.timedelta(hours=8)).hour
+    should_push = (not args.no_push) and (args.push == "always" or 7 <= beijing_hour <= 9)
+    print(f"[info] 推送决策: {'推送' if should_push else '跳过'} (北京时间 {beijing_hour} 点, 模式 {args.push})")
+    if should_push:
         token = os.environ.get("PUSHPLUS_TOKEN", "")
         img_url = f"{site_url}/output/{date.isoformat()}.png".replace("//output", "/output") if site_url else ""
         html = f'<h3>每日新闻 {date_str} {weekday}</h3><p>{weather["display"]}</p>'

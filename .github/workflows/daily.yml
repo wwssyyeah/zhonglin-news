@@ -2,9 +2,19 @@ name: daily-news
 
 on:
   schedule:
-    # UTC 0:15 = 北京时间 8:15（GitHub Actions 可能有 5~20 分钟队列延迟）
+    # UTC 0:15 = 北京 8:15 早间主生成（推送微信）
     - cron: '15 0 * * *'
-  workflow_dispatch: {}
+    # UTC 4:00/8:00/12:00 = 北京 12:00/16:00/20:00 刷新（不推送，仅更新图片与缓存）
+    - cron: '0 4 * * *'
+    - cron: '0 8 * * *'
+    - cron: '0 12 * * *'
+  workflow_dispatch:
+    inputs:
+      push:
+        description: '推送模式'
+        type: choice
+        default: 'auto'
+        options: ['auto', 'always']
 
 permissions:
   contents: write
@@ -26,7 +36,7 @@ jobs:
         env:
           PUSHPLUS_TOKEN: ${{ secrets.PUSHPLUS_TOKEN }}
           SITE_URL: ${{ vars.SITE_URL }}
-        run: python generate_news.py
+        run: python generate_news.py --push "${{ github.event.inputs.push || 'auto' }}"
 
       - name: 提交产物
         run: |

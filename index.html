@@ -40,12 +40,11 @@
     padding: 4px 16px 8px; line-height: 1.6; white-space: pre-line;
   }
   #stage { padding: 0 12px 24px; }
-  #stage img, #stage canvas {
+  #stage img {
     width: 100%; height: auto; display: block;
     border-radius: 8px; box-shadow: 0 4px 18px rgba(0,0,0,.18);
     background: #fff;
   }
-  .hidden { display: none !important; }
   footer { text-align: center; font-size: 11px; color: #a09a90; padding: 0 0 20px; }
 </style>
 </head>
@@ -72,6 +71,7 @@ const log = s => { STATUS.textContent = s; console.log(s); };
 
 let CONFIG = null, fontR = null, fontB = null, TEMPLATE = null;
 let latestCanvasURL = null;
+let SOURCES_CACHE = { boards: {}, weather: null, date: '' };
 
 /* ---------------- 基础加载 ---------------- */
 async function boot() {
@@ -89,6 +89,11 @@ async function boot() {
   await new Promise((ok, no) => { TEMPLATE.onload = ok; TEMPLATE.onerror = no; })
     .catch(() => log('模版图加载失败'));
 
+  // 云端缓存（各板块标题 + 天气），供实时抓取失败时兜底
+  try {
+    SOURCES_CACHE = await fetch('output/sources.json?t=' + Date.now()).then(r => r.json());
+  } catch (e) { console.warn('sources.json 加载失败', e); }
+
   // 展示当日已生成结果（若 Actions 已跑）
   try {
     const d = await fetch('output/latest.json?t=' + Date.now()).then(r => r.json());
@@ -101,50 +106,21 @@ async function boot() {
 }
 
 /* ---------------- 数据抓取 ---------------- */
-async function fetchViaProxy(url, timeout = 25000) {
-  const proxies = [
-    u => 'https://api.allorigins.win/raw?url=' + encodeURIComponent(u),
-    u => 'https://corsproxy.io/?url=' + encodeURIComponent(u),
-  ];
-  for (const p of proxies) {
-    try {
-      const r = await fetch(p(url), { signal: AbortSignal.timeout(timeout) });
-      if (r.ok) return await r.text();
-    } catch (e) { /* 尝试下一个代理 */ }
-  }
-  throw new Error('代理抓取失败: ' + url);
-}
-
-function parseRSS(xmlText) {
-  const doc = new DOMParser().parseFromString(xmlText, 'text/xml');
-  const items = [];
-  doc.querySelectorAll('item').forEach(it => {
-    const title = (it.querySelector('title')?.textContent || '').trim();
-    if (title) items.push({ title, published: it.querySelector('pubDate')?.textContent || '' });
-  });
-  return items;
-}
-
-function parseHTMLTitles(htmlText, tmin, tmax) {
-  const doc = new DOMParser().parseFromString(htmlText, 'text/html');
-  const out = [], seen = new Set();
-  doc.querySelectorAll('a').forEach(a => {
-    const t = (a.textContent || '').replace(/\s+/g, '');
-    if (t.length < tmin || t.length > tmax) return;
-    if (/首页|更多|登录|搜索|注册/.test(t)) return;
-    if (seen.has(t)) return;
-    seen.add(t);
-    out.push({ title: t, published: '' });
-    if (out.length >= 20) return;
-  });
-  return out;
+// RSS 通过 rss2json 实时抓取（国内可达，自带 CORS 头，服务端处理编码）
+async function fetchRSS2JSON(rssUrl, timeout = 25000) {
+  const u = 'https://api.rss2json.com/v1/api.json?rss_url=' + encodeURIComponent(rssUrl);
+  const r = await fetch(u, { signal: AbortSignal.timeout(timeout) });
+  if (!r.ok) throw new Error('HTTP ' + r.status);
+  const d = await r.json();
+  if (d.status !== 'ok' || !Array.isArray(d.items)) throw new Error(d.message || 'RSS解析失败');
+  return d.items;
 }
 
 async function getWeather() {
   const w = CONFIG.weather;
   const url = `https://api.open-meteo.com/v1/forecast?latitude=${w.latitude}&longitude=${w.longitude}` +
     `&daily=temperature_2m_max,temperature_2m_min,weather_code&timezone=Asia%2FShanghai&forecast_days=1`;
-  const d = (await fetch(url).then(r => r.json())).daily;
+  const d = (await fetch(url, { signal: AbortSignal.timeout(15000) }).then(r => r.json())).daily;
   const code = d.weather_code[0];
   const tmax = Math.round(d.temperature_2m_max[0]);
   const tmin = Math.round(d.temperature_2m_min[0]);
@@ -155,31 +131,55 @@ async function getWeather() {
   return { code, text, tmin, tmax, display: `${text} ${tmin}~${tmax}℃` };
 }
 
+async function getWeatherSafe() {
+  try {
+    return await getWeather();
+  } catch (e) {
+    const w = SOURCES_CACHE.weather;
+    if (w && w.display) {
+      log(`实时天气获取失败，使用云端缓存：${w.display}`);
+      return { code: w.code, text: w.display.split(' ')[0], display: w.display };
+    }
+    throw new Error('天气获取失败（实时与缓存均不可用）');
+  }
+}
+
 async function collectNews() {
   const cfg = CONFIG.news;
   const block = cfg.block_keywords;
   const news = [];
   for (const cat of cfg.categories) {
-    let items = [];
-    for (const src of cat.sources) {
+    let titles = [];
+    const rssSrcs = cat.sources.filter(s => s.type === 'rss');
+    const htmlSrcs = cat.sources.filter(s => s.type === 'html');
+
+    // RSS 板块：rss2json 实时抓取
+    for (const src of rssSrcs) {
       try {
-        const text = await fetchViaProxy(src.url);
-        items = items.concat(src.type === 'rss'
-          ? parseRSS(text)
-          : parseHTMLTitles(text, src.title_min || 10, src.title_max || 60));
-      } catch (e) { log(`板块[${cat.name}] 源抓取失败：${e.message}`); }
+        const items = await fetchRSS2JSON(src.url);
+        titles = titles.concat(items.map(i => (i.title || '').trim()).filter(Boolean));
+      } catch (e) {
+        log(`板块[${cat.name}] 实时抓取失败，改用云端缓存`);
+      }
     }
+    // 网页板块：使用云端缓存标题（Actions 定时抓取）
+    const cached = (SOURCES_CACHE.boards && SOURCES_CACHE.boards[cat.name]) || [];
+    if (htmlSrcs.length) titles = titles.concat(cached);
+    // RSS 全部失败时兜底用缓存
+    if (!titles.length && cached.length) titles = cached;
+
+    // 过滤：娱乐关键词 + 板块必备关键词 + 去重
     const req = cat.require_keywords || [];
     const seen = new Set();
-    const uniq = items.filter(i => {
-      if (block.some(k => i.title.includes(k))) return false;
-      if (req.length && !req.some(k => i.title.includes(k))) return false;
-      const key = i.title.replace(/[\s\W]+/g, '');
+    const uniq = titles.filter(t => {
+      if (block.some(k => t.includes(k))) return false;
+      if (req.length && !req.some(k => t.includes(k))) return false;
+      const key = t.replace(/[\s\W]+/g, '');
       if (seen.has(key)) return false;
       seen.add(key);
       return true;
     });
-    uniq.slice(0, cat.quota).forEach(i => news.push({ title: i.title, category: cat.name }));
+    uniq.slice(0, cat.quota).forEach(t => news.push({ title: t, category: cat.name }));
     log(`板块[${cat.name}] ${uniq.length} 条可用，选用 ${Math.min(uniq.length, cat.quota)} 条`);
   }
   const maxLen = cfg.max_title_len;
@@ -349,7 +349,7 @@ function render(dateStr, weekday, weather, news) {
     ctx.fillText(dText, x1, y1 + (y2 - y1 - th) / 2 + m.actualBoundingBoxAscent);
   }
 
-  // 天气文字
+  // 天气文字（深蓝）
   const wText = weather.display;
   size = fitSingleLine(ctx, wText, 'SHSB', L.weather_text_box, 30);
   ctx.font = `${size}px SHSB`; ctx.fillStyle = '#16337a';
@@ -388,7 +388,7 @@ $('regen').addEventListener('click', async () => {
   btn.disabled = true; btn.textContent = '生成中…';
   try {
     log('正在获取苏州天气…');
-    const weather = await getWeather();
+    const weather = await getWeatherSafe();
     log(`天气：${weather.display}，正在抓取新闻…`);
     const news = await collectNews();
     if (!news.length) throw new Error('未抓到任何新闻');
@@ -397,15 +397,15 @@ $('regen').addEventListener('click', async () => {
     const dateStr = `${today.getMonth() + 1}月${today.getDate()}日`;
     render(dateStr, weekday, weather, news);
     // 显示 Canvas
-    if (latestCanvasURL) URL.revokeObjectURL(latestCanvasURL);
-    latestCanvasURL = $('cv').toBlob
-      ? await new Promise(ok => $('cv').toBlob(ok, 'image/png'))
-      : null;
-    if (latestCanvasURL) {
-      latestCanvasURL = URL.createObjectURL(latestCanvasURL);
+    const blob = await new Promise(ok => $('cv').toBlob(ok, 'image/png'));
+    if (blob) {
+      if (latestCanvasURL) URL.revokeObjectURL(latestCanvasURL);
+      latestCanvasURL = URL.createObjectURL(blob);
       $('dailyImg').src = latestCanvasURL;
     }
-    $('meta').textContent = `${today.toISOString().slice(0,10)} ${weekday} · ${weather.display}`;
+    const d = new Date();
+    const iso = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+    $('meta').textContent = `${iso} ${weekday} · ${weather.display}`;
     $('saveBtn').disabled = false;
     log('已生成最新内容，点击"保存图片"或长按图片保存');
   } catch (e) {
