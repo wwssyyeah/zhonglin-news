@@ -1,8 +1,8 @@
 {
-  "date": "2026-09-04",
-  "weekday": "周五",
-  "weather": "小雨 24~30℃",
-  "weather_code": 53,
+  "date": "2026-09-05",
+  "weekday": "周六",
+  "weather": "小雨 23~30℃",
+  "weather_code": 51,
   "news": [
     {
       "title": "财政部甘肃监管局：构建“一二三”监管体系推动甘肃中央财政监管工作提质增效",
@@ -82,6 +82,6 @@
     }
   ],
   "font_size": 29,
-  "generated_at": "2026-09-04T15:34:01",
-  "image": "output/2026-09-04.png"
+  "generated_at": "2026-09-05T04:21:45",
+  "image": "output/2026-09-05.png"
 }
