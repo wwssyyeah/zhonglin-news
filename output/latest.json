@@ -1,8 +1,8 @@
 {
-  "date": "2026-09-09",
-  "weekday": "周三",
-  "weather": "阴 21~28℃",
-  "weather_code": 3,
+  "date": "2026-09-10",
+  "weekday": "周四",
+  "weather": "小雨 19~28℃",
+  "weather_code": 51,
   "news": [
     {
       "title": "2026年全国会计专业技术中级资格考试顺利举行",
@@ -82,6 +82,6 @@
     }
   ],
   "font_size": 29,
-  "generated_at": "2026-09-09T15:43:37",
-  "image": "output/2026-09-09.png"
+  "generated_at": "2026-09-10T04:36:43",
+  "image": "output/2026-09-10.png"
 }
