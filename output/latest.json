@@ -2,7 +2,7 @@
   "date": "2026-09-18",
   "weekday": "周五",
   "weather": "小雨 24~30℃",
-  "weather_code": 53,
+  "weather_code": 51,
   "news": [
     {
       "title": "2026年1-8月财政收支情况",
@@ -82,6 +82,6 @@
     }
   ],
   "font_size": 30,
-  "generated_at": "2026-09-18T12:52:02",
+  "generated_at": "2026-09-18T15:35:32",
   "image": "output/2026-09-18.png"
 }
