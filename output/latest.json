@@ -1,9 +1,13 @@
 {
-  "date": "2026-09-19",
-  "weekday": "周六",
-  "weather": "小雨 23~30℃",
-  "weather_code": 51,
+  "date": "2026-09-20",
+  "weekday": "周日",
+  "weather": "阴 23~30℃",
+  "weather_code": 3,
   "news": [
+    {
+      "title": "廖岷会见肯尼亚财政部常务副部长基普托",
+      "category": "财税"
+    },
     {
       "title": "2026年1-8月财政收支情况",
       "category": "财税"
@@ -14,10 +18,6 @@
     },
     {
       "title": "财政部山东监管局：抓实绩效评价推动超长期特别国债支持消费品以旧换新资金提质增效",
-      "category": "财税"
-    },
-    {
-      "title": "廖岷会见新加坡国立大学教授席睿德",
       "category": "财税"
     },
     {
@@ -82,6 +82,6 @@
     }
   ],
   "font_size": 30,
-  "generated_at": "2026-09-19T15:09:10",
-  "image": "output/2026-09-19.png"
+  "generated_at": "2026-09-20T04:49:50",
+  "image": "output/2026-09-20.png"
 }
