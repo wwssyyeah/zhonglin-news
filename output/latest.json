@@ -1,8 +1,8 @@
 {
   "date": "2026-09-22",
   "weekday": "周二",
-  "weather": "小雨 22~30℃",
-  "weather_code": 51,
+  "weather": "阴 23~30℃",
+  "weather_code": 3,
   "news": [
     {
       "title": "宋其超为2026年深化财税体制改革专题研究班（地市级）作专题授课并与学员座谈交流",
@@ -82,6 +82,6 @@
     }
   ],
   "font_size": 29,
-  "generated_at": "2026-09-22T13:18:11",
+  "generated_at": "2026-09-22T16:03:54",
   "image": "output/2026-09-22.png"
 }
