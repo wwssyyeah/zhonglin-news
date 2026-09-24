@@ -1,7 +1,7 @@
 {
-  "date": "2026-09-23",
-  "weekday": "周三",
-  "weather": "阴 24~29℃",
+  "date": "2026-09-24",
+  "weekday": "周四",
+  "weather": "阴 23~30℃",
   "weather_code": 3,
   "news": [
     {
@@ -82,6 +82,6 @@
     }
   ],
   "font_size": 30,
-  "generated_at": "2026-09-23T15:54:18",
-  "image": "output/2026-09-23.png"
+  "generated_at": "2026-09-24T04:43:22",
+  "image": "output/2026-09-24.png"
 }
