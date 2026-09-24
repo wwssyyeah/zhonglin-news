@@ -1,8 +1,8 @@
 {
   "date": "2026-09-24",
   "weekday": "周四",
-  "weather": "阴 23~30℃",
-  "weather_code": 3,
+  "weather": "小雨 23~30℃",
+  "weather_code": 51,
   "news": [
     {
       "title": "蓝佛安会见香港特别行政区政府财政司司长陈茂波",
@@ -82,6 +82,6 @@
     }
   ],
   "font_size": 30,
-  "generated_at": "2026-09-24T04:43:22",
+  "generated_at": "2026-09-24T08:55:13",
   "image": "output/2026-09-24.png"
 }
