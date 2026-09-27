@@ -1,8 +1,8 @@
 {
   "date": "2026-09-27",
   "weekday": "周日",
-  "weather": "雷雨 24~29℃",
-  "weather_code": 95,
+  "weather": "小雨 24~27℃",
+  "weather_code": 53,
   "news": [
     {
       "title": "财政部云南监管局：下好“三步棋”织密财政收入监管“一张网”",
@@ -82,6 +82,6 @@
     }
   ],
   "font_size": 29,
-  "generated_at": "2026-09-27T13:47:00",
+  "generated_at": "2026-09-27T16:10:40",
   "image": "output/2026-09-27.png"
 }
