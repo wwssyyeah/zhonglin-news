@@ -1,8 +1,8 @@
 {
   "date": "2026-09-29",
   "weekday": "周二",
-  "weather": "阵雨 21~25℃",
-  "weather_code": 80,
+  "weather": "小雨 21~25℃",
+  "weather_code": 53,
   "news": [
     {
       "title": "蓝佛安以视频方式出席亚洲基础设施投资银行第十一届理事会年会",
@@ -82,6 +82,6 @@
     }
   ],
   "font_size": 29,
-  "generated_at": "2026-09-29T14:45:55",
+  "generated_at": "2026-09-29T17:26:22",
   "image": "output/2026-09-29.png"
 }
