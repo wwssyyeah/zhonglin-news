@@ -1,8 +1,8 @@
 {
-  "date": "2026-09-28",
-  "weekday": "周一",
-  "weather": "阵雨 22~25℃",
-  "weather_code": 81,
+  "date": "2026-09-29",
+  "weekday": "周二",
+  "weather": "中雨 21~24℃",
+  "weather_code": 55,
   "news": [
     {
       "title": "财政部广西监管局：“四个聚焦”推进国有金融资本产权登记监管提质增效",
@@ -82,6 +82,6 @@
     }
   ],
   "font_size": 29,
-  "generated_at": "2026-09-28T19:04:19",
-  "image": "output/2026-09-28.png"
+  "generated_at": "2026-09-29T05:39:07",
+  "image": "output/2026-09-29.png"
 }
