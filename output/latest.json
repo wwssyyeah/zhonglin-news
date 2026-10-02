@@ -1,8 +1,8 @@
 {
   "date": "2026-10-02",
   "weekday": "周五",
-  "weather": "小雨 18~21℃",
-  "weather_code": 53,
+  "weather": "阵雨 18~20℃",
+  "weather_code": 81,
   "news": [
     {
       "title": "蓝佛安：精准有效实施更加积极的财政政策",
@@ -82,6 +82,6 @@
     }
   ],
   "font_size": 29,
-  "generated_at": "2026-10-02T14:38:32",
+  "generated_at": "2026-10-02T17:12:46",
   "image": "output/2026-10-02.png"
 }
