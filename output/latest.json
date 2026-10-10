@@ -1,8 +1,8 @@
 {
-  "date": "2026-10-09",
-  "weekday": "周五",
-  "weather": "阴 17~26℃",
-  "weather_code": 3,
+  "date": "2026-10-10",
+  "weekday": "周六",
+  "weather": "小雨 17~26℃",
+  "weather_code": 51,
   "news": [
     {
       "title": "2026年上半年中国财政政策执行情况报告",
@@ -82,6 +82,6 @@
     }
   ],
   "font_size": 30,
-  "generated_at": "2026-10-09T17:49:40",
-  "image": "output/2026-10-09.png"
+  "generated_at": "2026-10-10T05:45:42",
+  "image": "output/2026-10-10.png"
 }
