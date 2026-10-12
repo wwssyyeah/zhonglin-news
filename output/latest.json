@@ -1,8 +1,8 @@
 {
-  "date": "2026-10-11",
-  "weekday": "周日",
-  "weather": "多云 16~25℃",
-  "weather_code": 2,
+  "date": "2026-10-12",
+  "weekday": "周一",
+  "weather": "阴 16~25℃",
+  "weather_code": 3,
   "news": [
     {
       "title": "廖岷会见高盛集团总裁温泽恩",
@@ -82,6 +82,6 @@
     }
   ],
   "font_size": 30,
-  "generated_at": "2026-10-11T17:10:21",
-  "image": "output/2026-10-11.png"
+  "generated_at": "2026-10-12T05:50:36",
+  "image": "output/2026-10-12.png"
 }
