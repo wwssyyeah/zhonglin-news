@@ -1,7 +1,7 @@
 {
   "date": "2026-10-20",
   "weekday": "周二",
-  "weather": "阵雨 19~26℃",
+  "weather": "阵雨 14~21℃",
   "weather_code": 80,
   "news": [
     {
@@ -82,6 +82,6 @@
     }
   ],
   "font_size": 30,
-  "generated_at": "2026-10-20T13:29:01",
+  "generated_at": "2026-10-20T16:08:57",
   "image": "output/2026-10-20.png"
 }
