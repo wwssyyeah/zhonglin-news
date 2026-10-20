@@ -1,8 +1,8 @@
 {
   "date": "2026-10-20",
   "weekday": "周二",
-  "weather": "小雨 20~26℃",
-  "weather_code": 51,
+  "weather": "小雨 19~26℃",
+  "weather_code": 53,
   "news": [
     {
       "title": "财政部发行2026年记账式贴现（六十六期）国债",
@@ -82,6 +82,6 @@
     }
   ],
   "font_size": 29,
-  "generated_at": "2026-10-20T04:43:22",
+  "generated_at": "2026-10-20T09:03:01",
   "image": "output/2026-10-20.png"
 }
