@@ -1,8 +1,8 @@
 {
   "date": "2026-10-22",
   "weekday": "周四",
-  "weather": "阴 12~21℃",
-  "weather_code": 3,
+  "weather": "阵雨 15~23℃",
+  "weather_code": 80,
   "news": [
     {
       "title": "财政金融协同促内需一揽子政策专题|财政部天津监管局：强化财政金融政策协同聚力扩大内需提振经济",
@@ -82,6 +82,6 @@
     }
   ],
   "font_size": 27,
-  "generated_at": "2026-10-22T13:40:22",
+  "generated_at": "2026-10-22T16:25:19",
   "image": "output/2026-10-22.png"
 }
