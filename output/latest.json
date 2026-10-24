@@ -1,8 +1,8 @@
 {
-  "date": "2026-10-23",
-  "weekday": "周五",
-  "weather": "阵雨 18~21℃",
-  "weather_code": 80,
+  "date": "2026-10-24",
+  "weekday": "周六",
+  "weather": "阵雨 17~20℃",
+  "weather_code": 81,
   "news": [
     {
       "title": "2026年前三季度财政收支情况新闻发布会文字实录",
@@ -82,6 +82,6 @@
     }
   ],
   "font_size": 29,
-  "generated_at": "2026-10-23T16:14:28",
-  "image": "output/2026-10-23.png"
+  "generated_at": "2026-10-24T04:30:27",
+  "image": "output/2026-10-24.png"
 }
