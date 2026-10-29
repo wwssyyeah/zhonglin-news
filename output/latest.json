@@ -1,8 +1,8 @@
 {
   "date": "2026-10-29",
   "weekday": "周四",
-  "weather": "小雨 15~22℃",
-  "weather_code": 51,
+  "weather": "多云 14~22℃",
+  "weather_code": 2,
   "news": [
     {
       "title": "蓝佛安会见世界银行常务副行长兼首席行政官张文才",
@@ -82,6 +82,6 @@
     }
   ],
   "font_size": 29,
-  "generated_at": "2026-10-29T15:07:02",
+  "generated_at": "2026-10-29T17:52:33",
   "image": "output/2026-10-29.png"
 }
