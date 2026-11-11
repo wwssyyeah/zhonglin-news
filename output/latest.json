@@ -1,9 +1,13 @@
 {
-  "date": "2026-11-10",
-  "weekday": "周二",
-  "weather": "阴 7~17℃",
+  "date": "2026-11-11",
+  "weekday": "周三",
+  "weather": "阴 7~16℃",
   "weather_code": 3,
   "news": [
+    {
+      "title": "廖岷副部长在加拿大多伦多出席人民币绿色主权债券发行活动",
+      "category": "财税"
+    },
     {
       "title": "财政部在加拿大成功发行人民币绿色主权债券",
       "category": "财税"
@@ -14,10 +18,6 @@
     },
     {
       "title": "第二次中加经济财金战略对话联合情况说明",
-      "category": "财税"
-    },
-    {
-      "title": "财政部发行2026年记账式贴现（七十三期）国债",
       "category": "财税"
     },
     {
@@ -81,7 +81,7 @@
       "category": "知识产权"
     }
   ],
-  "font_size": 30,
-  "generated_at": "2026-11-10T19:10:21",
-  "image": "output/2026-11-10.png"
+  "font_size": 29,
+  "generated_at": "2026-11-11T06:05:37",
+  "image": "output/2026-11-11.png"
 }
