@@ -1,8 +1,8 @@
 {
   "date": "2026-11-12",
   "weekday": "周四",
-  "weather": "小雨 12~18℃",
-  "weather_code": 53,
+  "weather": "阵雨 13~19℃",
+  "weather_code": 80,
   "news": [
     {
       "title": "浙江：积极推动建立与乡镇履职事项清单相匹配的财政保障机制",
@@ -82,6 +82,6 @@
     }
   ],
   "font_size": 29,
-  "generated_at": "2026-11-12T12:03:56",
+  "generated_at": "2026-11-12T16:43:08",
   "image": "output/2026-11-12.png"
 }
