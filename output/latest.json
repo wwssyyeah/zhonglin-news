@@ -1,8 +1,8 @@
 {
   "date": "2026-11-13",
   "weekday": "周五",
-  "weather": "中雨 13~20℃",
-  "weather_code": 55,
+  "weather": "—",
+  "weather_code": 3,
   "news": [
     {
       "title": "财政部党组召开2026年第二轮巡视动员部署会",
@@ -82,6 +82,6 @@
     }
   ],
   "font_size": 30,
-  "generated_at": "2026-11-13T11:46:38",
+  "generated_at": "2026-11-13T16:02:29",
   "image": "output/2026-11-13.png"
 }
