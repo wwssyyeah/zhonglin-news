@@ -1,8 +1,8 @@
 {
   "date": "2026-11-16",
   "weekday": "周一",
-  "weather": "小雨 11~19℃",
-  "weather_code": 51,
+  "weather": "—",
+  "weather_code": 3,
   "news": [
     {
       "title": "财政部广东监管局：严把“四关”扎实做好国债资金监管",
@@ -82,6 +82,6 @@
     }
   ],
   "font_size": 29,
-  "generated_at": "2026-11-16T12:21:07",
+  "generated_at": "2026-11-16T18:15:29",
   "image": "output/2026-11-16.png"
 }
