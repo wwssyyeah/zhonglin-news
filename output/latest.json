@@ -1,8 +1,8 @@
 {
   "date": "2026-11-20",
   "weekday": "周五",
-  "weather": "多云 4~12℃",
-  "weather_code": 2,
+  "weather": "晴 5~14℃",
+  "weather_code": 0,
   "news": [
     {
       "title": "2026年1-10月财政收支情况",
@@ -82,6 +82,6 @@
     }
   ],
   "font_size": 30,
-  "generated_at": "2026-11-20T12:24:00",
+  "generated_at": "2026-11-20T16:52:52",
   "image": "output/2026-11-20.png"
 }
