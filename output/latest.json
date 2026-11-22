@@ -1,8 +1,8 @@
 {
   "date": "2026-11-22",
   "weekday": "周日",
-  "weather": "阴 6~16℃",
-  "weather_code": 3,
+  "weather": "小雨 10~17℃",
+  "weather_code": 53,
   "news": [
     {
       "title": "蓝佛安出席亚洲基础设施投资银行香港办公室协定签署仪式",
@@ -82,6 +82,6 @@
     }
   ],
   "font_size": 30,
-  "generated_at": "2026-11-22T12:11:49",
+  "generated_at": "2026-11-22T16:07:41",
   "image": "output/2026-11-22.png"
 }
