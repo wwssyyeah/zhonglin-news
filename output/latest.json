@@ -1,8 +1,8 @@
 {
   "date": "2026-11-28",
   "weekday": "周六",
-  "weather": "阴 6~15℃",
-  "weather_code": 3,
+  "weather": "晴 4~15℃",
+  "weather_code": 0,
   "news": [
     {
       "title": "蓝佛安会见国际农业发展基金总裁拉里奥",
@@ -82,6 +82,6 @@
     }
   ],
   "font_size": 29,
-  "generated_at": "2026-11-28T12:37:52",
+  "generated_at": "2026-11-28T16:45:23",
   "image": "output/2026-11-28.png"
 }
